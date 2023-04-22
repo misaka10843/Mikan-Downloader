@@ -55,6 +55,11 @@ def aria2(title, rss_date, url):
         port=ARIA2['port'],
         secret=ARIA2['secret']
     ))
+    try:
+        options = client.get_global_options()
+    except Exception as e:
+        print(f"无法连接至Aria2: {e}")
+        exit()
     base_dir = BASE_DRI or client.get_global_options().get('dir')
     if not rss_date:
         rss_date = datetime.datetime.now().year

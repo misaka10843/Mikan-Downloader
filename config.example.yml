@@ -1,0 +1,13 @@
+aria2:
+  host: '' # aria2的IP，通常为127.0.0.1
+  port: 6800 # aria2的端口，如果是普通的默认为6800，如果是Motrix则为16800
+  secret: '' # aria2的密钥，通常留空即可
+proxy: '' # 请求到Mikan的时候使用的代理
+
+save_dir: '' # 下载番剧的路径
+torrent_dir: '' # 保存token的路径，默认为程序目录下的torrents文件夹
+
+mikan:
+  - url: 'https://mikanani.me/RSS/Bangumi?bangumiId=2981&subgroupid=583' # Mikan的RSS链接
+    rule: 'MP4' # 匹配规则，可以使用正则表达式
+    date: '2023' # 发布年份（通常为了媒体软件更好的扫描），留空为当前年份

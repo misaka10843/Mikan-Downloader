@@ -26,7 +26,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Compile bin
         run: |
-          pyinstaller -n Linux-ComicFuz-Down -F main.py -i icon.ico
+          pyinstaller -n Mikan-Downloader-Linux -F main.py -i icon.ico
       - name: upload bin
         uses: actions/upload-artifact@master
         with:
@@ -50,7 +50,7 @@ jobs:
           }
       - name: Compile exe
         run: |
-          pyinstaller -n ComicFuz-Down -F main.py -i icon.ico
+          pyinstaller -n Mikan-Downloader -F main.py -i icon.ico
       - name: upload exe
         uses: actions/upload-artifact@master
         with:
