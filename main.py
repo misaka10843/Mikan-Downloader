@@ -34,7 +34,7 @@ def get_db_connection():
 
 
 def read_config():
-    with open('config.yml', 'r',encoding="UTF-8") as f:
+    with open('config.yml', 'r', encoding="UTF-8") as f:
         config = yaml.safe_load(f)
     return config
 
@@ -93,7 +93,7 @@ def parse_rss_entries(rss_link, rss_date, rss_rule, conn):
         c = conn.cursor()
         c.execute("SELECT * FROM guids WHERE guid=?", (guid,))
         if not c.fetchone():
-            if re.search(rss_rule, guid):
+            if re.search(r'.*' + rss_rule + '.*', guid):
                 for enclosure in entry.get('enclosures', []):
                     if enclosure.get('type') == 'application/x-bittorrent':
                         print(f"将{entry.id}添加到下载中")
