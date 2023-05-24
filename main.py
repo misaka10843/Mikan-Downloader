@@ -43,10 +43,10 @@ def api_restriction():
     global API_COUNTER
     API_COUNTER += 1
     # 防止退出后立马再次运行
-    if API_COUNTER >= 5:
+    if API_COUNTER >= 12:
         API_COUNTER = 0
         print("休息一下，给服务器一点喘息的时间吧qwq")
-        time.sleep(15)
+        time.sleep(5)
 
 
 def aria2(title, rss_date, url):
@@ -55,11 +55,7 @@ def aria2(title, rss_date, url):
         port=ARIA2['port'],
         secret=ARIA2['secret']
     ))
-    try:
-        options = client.get_global_options()
-    except Exception as e:
-        print(f"无法连接至Aria2: {e}")
-        exit()
+    check_aria2()
     base_dir = BASE_DRI or client.get_global_options().get('dir')
     if not rss_date:
         rss_date = datetime.datetime.now().year
@@ -118,6 +114,19 @@ def remove_unknown_rss_links(config, conn):
     c.close()
 
 
+def check_aria2():
+    client = aria2p.API(aria2p.Client(
+        host=ARIA2['host'],
+        port=ARIA2['port'],
+        secret=ARIA2['secret']
+    ))
+    try:
+        options = client.get_global_options()
+    except Exception as e:
+        print(f"无法连接至Aria2: {e}")
+        exit()
+
+
 def main():
     global PROXIES, ARIA2, BASE_DRI, TORRENTS_DIR
     conn = get_db_connection()
@@ -130,6 +139,7 @@ def main():
         }
     BASE_DRI = config['save_dir']
     ARIA2 = config['aria2']
+    check_aria2()
     if config['torrent_dir']:
         TORRENTS_DIR = config['torrent_dir']
     os.makedirs(TORRENTS_DIR, exist_ok=True)
