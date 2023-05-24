@@ -94,8 +94,7 @@ def parse_rss_entries(rss_link, rss_date, rss_rule, conn):
                     if enclosure.get('type') == 'application/x-bittorrent':
                         print(f"将{entry.id}添加到下载中")
                         aria2(title, rss_date, enclosure.get('href'))
-
-            c.execute("INSERT INTO guids VALUES (?, ?)", (guid, rss_link))
+                c.execute("INSERT INTO guids VALUES (?, ?)", (guid, rss_link))
             conn.commit()
         c.close()
 
