@@ -43,7 +43,7 @@ def api_restriction():
     global API_COUNTER
     API_COUNTER += 1
     # 防止退出后立马再次运行
-    if API_COUNTER >= 12:
+    if API_COUNTER >= 120:
         API_COUNTER = 0
         print("休息一下，给服务器一点喘息的时间吧qwq")
         time.sleep(5)
@@ -155,3 +155,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    time.sleep(5)
