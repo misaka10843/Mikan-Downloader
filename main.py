@@ -1,13 +1,13 @@
 import datetime
+import os
+import re
+import sqlite3
 import time
 
+import aria2p
 import feedparser
-import sqlite3
 import requests as requests
 import yaml
-import re
-import os
-import aria2p
 
 HEADER = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -18,6 +18,7 @@ ARIA2 = {}
 BASE_DRI = ""
 API_COUNTER = 0
 TORRENTS_DIR = "./torrents"
+API_URL = []
 
 
 def get_db_connection():
@@ -49,6 +50,22 @@ def api_restriction():
         time.sleep(5)
 
 
+def request(get_url, need=False):
+    for url in API_URL:
+        if need:
+            furl = url + get_url
+        else:
+            furl = get_url
+        print(f"正在请求：{furl}")
+        try:
+            response = requests.get(furl, headers=HEADER, proxies=PROXIES)
+            api_restriction()
+            print(f"请求完成")
+            return response
+        except Exception as e:
+            print(f"当前URL无法访问，将切换下一个URl，当前URL:{url}")
+
+
 def aria2(title, rss_date, url):
     client = aria2p.API(aria2p.Client(
         host=ARIA2['host'],
@@ -65,7 +82,7 @@ def aria2(title, rss_date, url):
         _, filename = os.path.split(url)
         filename = os.path.join(TORRENTS_DIR, filename)
         if not os.path.exists(filename):
-            resp = requests.get(url, headers=HEADER, proxies=PROXIES)
+            resp = request(url)
             api_restriction()
             with open(filename, 'wb') as f:
                 f.write(resp.content)
@@ -78,7 +95,7 @@ def get_rss_links(config):
 
 
 def parse_rss_entries(rss_link, rss_date, rss_rule, conn):
-    response = requests.get(rss_link, headers=HEADER, proxies=PROXIES)
+    response = request(rss_link, True)
     api_restriction()
     feed = feedparser.parse(response.text)
     title = feed['channel']['title'].replace("Mikan Project - ", "")
@@ -127,7 +144,7 @@ def check_aria2():
 
 
 def main():
-    global PROXIES, ARIA2, BASE_DRI, TORRENTS_DIR
+    global PROXIES, ARIA2, BASE_DRI, TORRENTS_DIR, API_URL
     conn = get_db_connection()
     config = read_config()
     # 将配置写入全局变量
@@ -138,6 +155,7 @@ def main():
         }
     BASE_DRI = config['save_dir']
     ARIA2 = config['aria2']
+    API_URL = config['api_url']
     check_aria2()
     if config['torrent_dir']:
         TORRENTS_DIR = config['torrent_dir']

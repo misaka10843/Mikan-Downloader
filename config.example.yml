@@ -4,10 +4,14 @@ aria2:
   secret: '' # aria2的密钥，通常留空即可
 proxy: '' # 请求到Mikan的时候使用的代理
 
+api_url:
+  - 'https://mikanani.me' # mikan的url，会按照顺序依次进行请求，可以填写镜像站链接
+  - 'https://mikanime.tv'
+
 save_dir: '' # 下载番剧的路径
 torrent_dir: '' # 保存token的路径，默认为程序目录下的torrents文件夹
 
 mikan:
-  - url: 'https://mikanani.me/RSS/Bangumi?bangumiId=2981&subgroupid=583' # Mikan的RSS链接
+  - url: '/RSS/Bangumi?bangumiId=2981&subgroupid=583' # RSS链接(去除域名部分)
     rule: 'MP4' # 匹配规则，可以使用正则表达式
     date: '2023' # 发布年份（通常为了媒体软件更好的扫描），留空为当前年份
