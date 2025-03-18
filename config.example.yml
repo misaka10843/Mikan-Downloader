@@ -1,5 +1,5 @@
 aria2:
-  host: '' # aria2的IP，通常为127.0.0.1
+  host: '' # aria2的IP，通常为http://127.0.0.1
   port: 6800 # aria2的端口，如果是普通的默认为6800，如果是Motrix则为16800
   secret: '' # aria2的密钥，通常留空即可
 proxy: '' # 请求到Mikan的时候使用的代理
