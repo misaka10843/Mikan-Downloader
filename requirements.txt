@@ -1,4 +1,10 @@
-feedparser
-requests
-PyYAML
-aria2p
+fastapi~=0.135.3
+pydantic~=2.12.5
+PyYAML~=6.0.3
+APScheduler~=3.11.2
+requests~=2.33.1
+feedparser~=6.0.12
+aria2p~=0.12.1
+beautifulsoup4~=4.14.3
+python-multipart
+uvicorn

@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  mikan-downloader:
+    build: .
+    container_name: mikan-downloader
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.yml:/app/config.yml
+      - ./history.db:/app/history.db
+      - ./downloads:/app/downloads  # 根据实际映射
+    environment:
+      - TZ=Asia/Shanghai
+
+  aria2:
+    image: p3terx/aria2-pro
+    container_name: aria2
+    restart: unless-stopped
+    ports:
+      - "6800:6800"
+      - "6888:6888"
+      - "6888:6888/udp"
+    volumes:
+      - ./aria2-config:/config
+      - ./downloads:/downloads  # 注意与 mikan-downloader 中 volumes 一致
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      - RPC_SECRET=YOUR_SECRET_CODE
