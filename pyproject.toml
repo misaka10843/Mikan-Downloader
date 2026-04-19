@@ -1,0 +1,30 @@
+[project]
+name = "mikan-downloader"
+version = "0.1.0"
+description = "A Mikan-based anime downloader and renamer"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "feedparser",
+    "aria2p",
+    "APScheduler",
+    "tortoise-orm",
+    "aiosqlite",
+    "beautifulsoup4",
+    "PyYAML",
+    "anitopy",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uvicorn]
+host = "0.0.0.0"
+port = 8000
+reload = true

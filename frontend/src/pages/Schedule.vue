@@ -35,11 +35,21 @@
                </tr>
             </thead>
             <tbody>
-               <tr v-for="job in jobs" :key="job.id">
-                  <td>{{ job.id }}</td>
-                  <td class="text-grey">{{ job.last_run_time || '未知 / 刚启动' }}</td>
-                  <td class="font-weight-bold text-primary">{{ job.next_run_time }}</td>
-               </tr>
+                <tr v-for="job in jobs" :key="job.id">
+                   <td>
+                      <div class="font-weight-bold">{{ job.id }}</div>
+                      <div class="text-caption text-grey">{{ job.name }}</div>
+                   </td>
+                   <td>
+                      <div>{{ job.last_run_time }}</div>
+                      <div v-if="job.status !== 'unknown'" :class="job.status === 'success' ? 'text-success' : 'text-error'" class="text-caption d-flex align-center">
+                         <v-icon size="x-small" class="mr-1">{{ job.status === 'success' ? 'mdi-check' : 'mdi-alert-circle' }}</v-icon>
+                         {{ job.status === 'success' ? '运行成功' : '运行失败' }}
+                         <span v-if="job.message && job.status === 'error'" class="ml-1 text-truncate" style="max-width: 150px">({{ job.message }})</span>
+                      </div>
+                   </td>
+                   <td class="font-weight-bold text-primary">{{ job.next_run_time }}</td>
+                </tr>
             </tbody>
          </v-table>
       </v-card>

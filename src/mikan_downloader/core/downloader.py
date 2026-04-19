@@ -1,13 +1,14 @@
 import datetime
 import os
 import re
-import sqlite3
 import time
 import requests
 import feedparser
 import aria2p
 import logging
 from .config import read_config
+from ..db.models import DownloadHistory, Subscription
+from .notifications import add_notification
 
 log = logging.getLogger("Downloader")
 
@@ -15,12 +16,20 @@ HEADER = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
 }
 
-def get_db_connection():
-    conn = sqlite3.connect('history.db')
-    db = conn.cursor()
-    db.execute('''CREATE TABLE IF NOT EXISTS guids (guid TEXT PRIMARY KEY, source TEXT)''')
-    conn.commit()
-    return conn
+async def add_to_history(guid: str, source: str):
+    """
+    添加下载历史 (异步 ORM 版)
+    """
+    await DownloadHistory.update_or_create(
+        guid=guid,
+        defaults={"source": source}
+    )
+
+async def check_history(guid: str) -> bool:
+    """
+    检查是否已在历史中
+    """
+    return await DownloadHistory.exists(guid=guid)
 
 def request_url(url, get_url, need=False, proxies=None):
     if need:
@@ -53,11 +62,11 @@ def aria2_client(config):
     ))
     return client
 
-def aria2_add(client, title, rss_date, url, base_dir, torrents_dir):
+async def aria2_add(client, title, rss_date, url, base_dir, torrents_dir, proxies=None):
     if not rss_date:
         rss_date = datetime.datetime.now().year
     
-    # 使用临时路径，供后续 Renamer 检测和移动
+    # 使用临时路径，供后续 Renamer 检测 and 移动
     staging_dir = os.path.join(base_dir, ".mikan_staging", f"{title} ({rss_date})")
     
     if url.startswith("magnet:?xt="):
@@ -66,13 +75,15 @@ def aria2_add(client, title, rss_date, url, base_dir, torrents_dir):
         _, filename = os.path.split(url)
         filename = os.path.join(torrents_dir, filename)
         if not os.path.exists(filename):
-            resp = request_url("", url)
+            resp = request_url("", url, proxies=proxies)
             if resp:
                 with open(filename, 'wb') as f:
                     f.write(resp.content)
         client.add_torrent(filename, options={'dir': staging_dir})
+    
+    await add_notification("success", "已添加下载任务", f"番剧 {title} 的新资源已推送到 Aria2")
 
-def parse_rss_entries(rss_link, rss_date, rss_rule, conn, config):
+async def parse_rss_entries(rss_link, rss_date, rss_rule, config):
     api_urls = config.get('api_url', ['https://mikanani.me'])
     proxies = None
     if config.get('proxy'):
@@ -81,6 +92,7 @@ def parse_rss_entries(rss_link, rss_date, rss_rule, conn, config):
     response = mikan_request(rss_link, api_urls, True, proxies)
     if not response:
         log.error(f"获取RSS失败: {rss_link}")
+        await add_notification("error", "RSS 抓取失败", f"无法获取订阅 {rss_link} 的更新内容，请检查网络或代理设置。")
         return
 
     feed = feedparser.parse(response.text)
@@ -96,55 +108,54 @@ def parse_rss_entries(rss_link, rss_date, rss_rule, conn, config):
 
     for entry in feed.entries:
         guid = entry.id
-        c = conn.cursor()
-        c.execute("SELECT * FROM guids WHERE guid=?", (guid,))
-        if not c.fetchone():
+        if not await DownloadHistory.exists(guid=guid):
             if re.search(r'.*' + rss_rule + '.*', guid):
                 for enclosure in entry.get('enclosures', []):
                     if enclosure.get('type') == 'application/x-bittorrent':
                         log.info(f"将 {entry.id} 添加到下载中")
-                        aria2_add(client, title, rss_date, enclosure.get('href'), base_dir, torrents_dir)
-                c.execute("INSERT INTO guids VALUES (?, ?)", (guid, rss_link))
-            conn.commit()
-        c.close()
+                        await aria2_add(client, title, rss_date, enclosure.get('href'), base_dir, torrents_dir, proxies)
+                await DownloadHistory.create(guid=guid, source=rss_link)
 
-def remove_unknown_rss_links(config, conn):
-    c = conn.cursor()
-    c.execute("SELECT DISTINCT source FROM guids")
-    db_links = [row[0] for row in c.fetchall()]
-
-    config_links = [source.get('url') for source in config.get('mikan', []) if source.get('url')]
-    remove_links = set(db_links) - set(config_links)
+async def remove_unknown_rss_links(config):
+    """
+    清理配置中不再存在的历史记录
+    """
+    # 获取数据库中所有的 source
+    db_sources = await DownloadHistory.all().distinct().values_list("source", flat=True)
+    
+    # 获取数据库中的所有订阅 URL
+    subscriptions = await Subscription.filter(is_deleted=False).all()
+    config_links = [s.url for s in subscriptions if s.url]
+    
+    remove_links = set(db_sources) - set(config_links)
 
     for remove_link in remove_links:
         log.info(f"找到配置中并未存在的RSS链接：{remove_link}，即将删除相关历史记录")
-        c.execute("DELETE FROM guids WHERE source=?", (remove_link,))
-        conn.commit()
-    c.close()
+        await DownloadHistory.filter(source=remove_link).delete()
 
-def run_download_task():
+async def run_download_task():
     log.info("开始执行扫描下载任务...")
-    config = read_config()
-    conn = get_db_connection()
+    config = await read_config()
     try:
         # Check aria2
         aria2_client(config).get_global_options()
     except Exception as e:
         log.error(f"无法连接至Aria2: {e}")
-        conn.close()
+        await add_notification("error", "Aria2 连接失败", f"无法连接至 Aria2 服务，请检查设置。错误: {e}")
         return
 
-    rss_links = [(source.get('url'), source.get('date'), source.get('rule')) for source in config.get('mikan', []) if not source.get('is_deleted')]
+    # 从数据库获取订阅
+    subs = await Subscription.filter(is_deleted=False).all()
+    rss_links = [(s.url, s.date, s.rule) for s in subs]
 
     for rss_link, rss_date, rss_rule in rss_links:
         if rss_link:
             try:
-                parse_rss_entries(rss_link, rss_date, rss_rule, conn, config)
+                await parse_rss_entries(rss_link, rss_date, rss_rule, config)
             except Exception as e:
                 log.error(f"解析 {rss_link} 出错: {e}")
             time.sleep(2) # 休眠防ban
 
     log.info("正在搜索下载历史中是否有无效RSS")
-    remove_unknown_rss_links(config, conn)
-    conn.close()
+    await remove_unknown_rss_links(config)
     log.info("查询完毕，已经将所有新的番剧添加到aria2中")

@@ -63,7 +63,7 @@
     </div>
 
     <!-- 预览与改名弹出窗 -->
-    <v-dialog v-model="previewDialog.show" max-width="900" persistent>
+    <v-dialog v-model="previewDialog.show" max-width="1300" persistent>
       <v-card class="rounded-xl">
         <v-card-title class="bg-primary text-white d-flex align-center pa-4">
           重命名集数抓取预览
@@ -77,18 +77,25 @@
             系统检测到该目录下已存在 <code>Season</code> 或 <code>Specials</code> 等标准层级目录。继续执行将把子目录内搜寻到的视频重新归类和移动。如果您已经整理完毕，不建议重复执行。
           </v-alert>
           <div class="mb-4">
-             <v-text-field
-                v-model="previewDialog.regex"
-                label="修正正规表达式 (留空 auto 为系统默认)"
-                variant="outlined"
-                density="compact"
-                hide-details
-                placeholder="例如: .*?(\d{2})\[GB\]"
-              >
-                <template v-slot:append>
-                   <v-btn color="secondary" @click="runPreview" :loading="previewDialog.loading">重新扫描解析</v-btn>
-                </template>
-             </v-text-field>
+             <v-row align="center">
+               <v-col cols="12" md="8">
+                 <v-text-field
+                    v-model="previewDialog.regex"
+                    label="修正正规表达式 (留空 auto 为系统默认)"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    placeholder="例如: .*?(\d{2})\[GB\]"
+                  >
+                    <template v-slot:append-inner>
+                       <v-btn color="primary" variant="flat" size="small" @click="runPreview" :loading="previewDialog.loading">重新扫描解析</v-btn>
+                    </template>
+                 </v-text-field>
+               </v-col>
+               <v-col cols="12" md="4" class="text-right">
+                  <v-btn color="error" variant="outlined" prepend-icon="mdi-delete-sweep" size="small" @click="deleteSelectedFiles" :disabled="selectedToDelete.length === 0">删除选中源文件</v-btn>
+               </v-col>
+             </v-row>
              
              <v-expansion-panels class="mt-3" variant="accordion">
                <v-expansion-panel elevation="0" class="border">
@@ -105,32 +112,48 @@
              </v-expansion-panels>
           </div>
           
-          <v-table density="compact" class="border rounded">
+          <v-table density="compact" class="border rounded fixed-header-table" height="500">
             <thead>
               <tr>
-                <th class="text-left py-2">原始视频文件名</th>
-                <th class="text-left py-2">预计重命名</th>
+                <th style="width: 40px"><v-checkbox-btn v-model="allSelected" @change="toggleAllSelect" density="compact" hide-details></v-checkbox-btn></th>
+                <th class="text-left py-2" style="width: 40%">原始视频文件名 (源路径)</th>
+                <th class="text-left py-2" style="width: 25%">预计执行动作 (目标路径)</th>
+                <th class="text-left py-2">手动修正操作区域</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(item, idx) in previewDialog.results" :key="idx">
-                <td class="text-caption text-grey py-2" style="max-width:300px; word-break:break-all">{{ item.original_name }}</td>
+              <tr v-for="(item, idx) in previewDialog.results" :key="idx" :class="item.conflict ? 'bg-error-lighten-5' : ''">
+                <td>
+                  <v-checkbox-btn v-model="selectedToDelete" :value="item.full_path" density="compact" hide-details color="error"></v-checkbox-btn>
+                </td>
                 <td class="py-2">
-                  <div class="d-flex align-center">
-                    <span v-if="item.status === 'success'" class="text-success mr-3 text-caption font-weight-bold" style="white-space: nowrap">
-                      {{ item.new_name }} <span class="text-grey ml-1 font-weight-regular">(移至 {{ item.season === 0 ? 'Specials' : `Season ${item.season}` }})</span>
-                    </span>
-                    <span v-else class="text-error mr-3 text-caption font-weight-bold" style="white-space: nowrap">失败</span>
-                    <v-text-field v-model="item.manualSeason" label="季/目录" density="compact" hide-details variant="outlined" class="mr-2" style="width: 85px; min-width: 85px" placeholder="0 或 SP"></v-text-field>
-                    <v-text-field v-model="item.manualEpisode" label="集号(可选)" density="compact" hide-details variant="outlined" class="mr-2" style="width: 100px; min-width: 100px" placeholder="留空保持原名"></v-text-field>
-                    <v-btn size="small" variant="tonal" :color="item.status === 'success' ? 'primary' : 'success'" @click="applyManual(item)">
-                       {{ item.status === 'success' ? '修正' : '赋予' }}
-                    </v-btn>
+                  <div class="text-xs text-grey mb-1 d-flex align-center" v-if="item.relative_path && item.relative_path.includes('\\')">
+                    <v-icon size="12" icon="mdi-folder-open-outline" class="mr-1"></v-icon>
+                    {{ item.relative_path.substring(0, item.relative_path.lastIndexOf('\\')) }}
+                  </div>
+                  <div class="text-caption font-weight-medium" style="word-break:break-all">
+                    {{ item.original_name }}
+                  </div>
+                  <v-chip v-if="item.conflict" size="x-small" color="error" class="mt-1">发现重名冲突 (v1/v2?)</v-chip>
+                </td>
+                <td class="py-2">
+                   <div v-if="item.status === 'success'">
+                      <div class="text-success text-body-2 font-weight-bold mb-1">{{ item.new_name }}</div>
+                      <div class="text-caption text-grey">移动至: <b>{{ item.season === 0 ? 'Specials' : `Season ${item.season}` }}</b></div>
+                   </div>
+                   <div v-else class="text-error text-caption font-weight-bold">解析失败</div>
+                </td>
+                <td class="py-2">
+                  <div class="d-flex align-center flex-wrap ga-2">
+                    <v-text-field v-model="item.manualSeason" label="季/目录" density="compact" hide-details variant="outlined" style="max-width: 90px;" placeholder="1, SP..."></v-text-field>
+                    <v-text-field v-model="item.manualEpisode" label="集号(可选)" density="compact" hide-details variant="outlined" style="max-width: 100px;" placeholder="留空保持原名"></v-text-field>
+                    <v-btn size="small" color="primary" variant="tonal" @click="applyManual(item)">应用修正</v-btn>
+                    <v-btn size="small" icon="mdi-delete-outline" color="error" variant="text" @click="deleteSingleFile(item)"></v-btn>
                   </div>
                 </td>
               </tr>
               <tr v-if="previewDialog.results.length === 0 && !previewDialog.loading">
-                <td colspan="2" class="text-center py-4 text-grey">该目录下未扫描到有效视频文件</td>
+                <td colspan="3" class="text-center py-4 text-grey">该目录下未扫描到有效视频文件</td>
               </tr>
             </tbody>
           </v-table>
@@ -172,6 +195,48 @@ const previewDialog = ref({
   alreadyCompliant: false,
   results: []
 })
+
+const selectedToDelete = ref([])
+const allSelected = ref(false)
+
+const toggleAllSelect = () => {
+  if (allSelected.value) {
+    selectedToDelete.value = previewDialog.value.results.map(r => r.full_path)
+  } else {
+    selectedToDelete.value = []
+  }
+}
+
+const deleteSingleFile = async (item) => {
+  if (!confirm(`确认物理删除源文件吗？此操作不可逆！\n文件: ${item.original_name}`)) return
+  try {
+    const res = await axios.delete('/api/library/file', { params: { path: item.full_path } })
+    if (res.data.status === 'success') {
+      showMsg('文件已永久删除')
+      previewDialog.value.results = previewDialog.value.results.filter(r => r.full_path !== item.full_path)
+    }
+  } catch (e) {
+    showMsg('删除失败', 'error')
+  }
+}
+
+const deleteSelectedFiles = async () => {
+  if (!confirm(`确认物理删除选中的 ${selectedToDelete.value.length} 个源文件吗？此操作不可逆！`)) return
+  previewDialog.value.loading = true
+  try {
+    for (const path of selectedToDelete.value) {
+      await axios.delete('/api/library/file', { params: { path } })
+    }
+    showMsg('批量删除完成')
+    previewDialog.value.results = previewDialog.value.results.filter(r => !selectedToDelete.value.includes(r.full_path))
+    selectedToDelete.value = []
+    allSelected.value = false
+  } catch (e) {
+    showMsg('部分文件删除失败', 'error')
+  } finally {
+    previewDialog.value.loading = false
+  }
+}
 
 const loadLibrary = async () => {
   loading.value = true

@@ -7,11 +7,12 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./config.yml:/app/config.yml
-      - ./history.db:/app/history.db
-      - ./downloads:/app/downloads  # 根据实际映射
+      - ./history.db:/app/history.db  # 数据库文件持久化
+      - ./downloads:/app/downloads    # 下载主目录映射
+      - ./torrents:/app/torrents      # 种子缓存目录映射
     environment:
       - TZ=Asia/Shanghai
+      - PYTHONPATH=/app/src           # 确保代码路径正确
 
   aria2:
     image: p3terx/aria2-pro

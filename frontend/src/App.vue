@@ -51,6 +51,47 @@
       >
         <span class="hidden-xs">立即运行</span>
       </v-btn>
+
+      <!-- 消息中心挂载 -->
+      <v-menu width="350" :close-on-content-click="true">
+        <template v-slot:activator="{ props }">
+          <v-btn v-bind="props" icon class="ml-2">
+            <v-badge v-if="unreadCount > 0" color="error" :content="unreadCount" overlap>
+              <v-icon>mdi-bell-outline</v-icon>
+            </v-badge>
+            <v-icon v-else>mdi-bell-outline</v-icon>
+          </v-btn>
+        </template>
+        <v-list class="pa-0 rounded-lg">
+          <div class="pa-3 bg-primary text-white d-flex align-center">
+            <span class="text-subtitle-2 font-weight-bold">系统通知</span>
+            <v-spacer></v-spacer>
+            <v-btn size="x-small" variant="text" color="white" @click.stop="markAllReadQuick">一键已读</v-btn>
+          </div>
+          <v-divider></v-divider>
+          <template v-if="recentNotifications.length > 0">
+            <v-list-item 
+              v-for="n in recentNotifications" 
+              :key="n.id"
+              class="border-b"
+              @click="currentView = 'notifications'"
+            >
+              <template v-slot:prepend>
+                <v-icon :color="getLevelColor(n.level)" :icon="getLevelIcon(n.level)" size="small"></v-icon>
+              </template>
+              <v-list-item-title class="text-caption font-weight-bold">{{ n.title }}</v-list-item-title>
+              <v-list-item-subtitle class="text-xs">{{ n.timestamp }}</v-list-item-subtitle>
+            </v-list-item>
+          </template>
+          <div v-else class="pa-10 text-center text-grey text-caption">
+            暂无未读消息
+          </div>
+          <v-divider></v-divider>
+          <v-btn block variant="text" class="text-caption py-3" height="auto" @click="currentView = 'notifications'">
+            查看历史完整纪录
+          </v-btn>
+        </v-list>
+      </v-menu>
     </v-app-bar>
 
     <v-main>
@@ -86,6 +127,8 @@ import Dashboard from './pages/Dashboard.vue'
 import Settings from './pages/Settings.vue'
 import Library from './pages/Library.vue'
 import Schedule from './pages/Schedule.vue'
+import Notifications from './pages/Notifications.vue'
+import History from './pages/History.vue'
 
 const { mobile } = useDisplay()
 const drawer = ref(!mobile.value)
@@ -94,10 +137,15 @@ const currentView = ref('dashboard')
 const running = ref(false)
 const snackbar = ref({ show: false, text: '', color: 'success' })
 
+const unreadCount = ref(0)
+const recentNotifications = ref([])
+
 const menuItems = [
   { title: '我的订阅', value: 'dashboard', icon: 'mdi-view-dashboard', component: Dashboard },
   { title: '本地片库整理 (Jellyfin)', value: 'library', icon: 'mdi-folder-play', component: Library },
   { title: '自动化与定时策略', value: 'schedule', icon: 'mdi-clock-outline', component: Schedule },
+  { title: '通知中心', value: 'notifications', icon: 'mdi-bell-ring', component: Notifications },
+  { title: '下载历史记录', value: 'history', icon: 'mdi-history', component: History },
   { title: '系统设置', value: 'settings', icon: 'mdi-cog', component: Settings },
 ]
 
@@ -127,6 +175,56 @@ const manualRun = async () => {
     setTimeout(() => running.value = false, 2000)
   }
 }
+
+const fetchNotifications = async () => {
+  try {
+    const res = await axios.get('/api/notifications', { params: { limit: 5, unread: true } })
+    recentNotifications.value = res.data
+    unreadCount.value = res.data.length
+  } catch (e) {
+    console.error('Failed to fetch notifications', e)
+  }
+}
+
+const markAllReadQuick = async () => {
+  try {
+    await axios.post('/api/notifications/read', {})
+    unreadCount.value = 0
+    recentNotifications.value = []
+    showMsg('全部标记已读')
+  } catch (e) {}
+}
+
+const getLevelColor = (level) => {
+  switch (level) {
+    case 'success': return 'success'
+    case 'error': return 'error'
+    case 'warning': return 'warning'
+    default: return 'primary'
+  }
+}
+
+const getLevelIcon = (level) => {
+  switch (level) {
+    case 'success': return 'mdi-check-circle'
+    case 'error': return 'mdi-alert-circle'
+    case 'warning': return 'mdi-alert'
+    default: return 'mdi-information'
+  }
+}
+
+// 每 30 秒轮询一次通知
+import { onMounted, onUnmounted } from 'vue'
+let pollTimer = null
+
+onMounted(() => {
+  fetchNotifications()
+  pollTimer = setInterval(fetchNotifications, 30000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style>

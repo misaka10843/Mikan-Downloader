@@ -21,7 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY main.py .
-COPY core/ ./core/
+COPY pyproject.toml .
+COPY src/ ./src/
+
+# Install the package in editable mode or just add src to PYTHONPATH
+ENV PYTHONPATH=/app/src
 
 # Copy frontend statically compiled files
 COPY --from=frontend-builder /app/spa_dist ./spa_dist

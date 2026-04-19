@@ -1,16 +1,40 @@
 import logging
-from apscheduler.schedulers.background import BackgroundScheduler
+import datetime
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from .downloader import run_download_task
 from .renamer import process_completed_downloads
 from .config import read_config
+from ..db.models import TaskLog
 
 log = logging.getLogger("Scheduler")
-scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()
 
-def init_scheduler():
-    log.info("初始化后台定时任务...")
-    cfg = read_config()
+async def job_listener(event):
+    job = scheduler.get_job(event.job_id)
+    if not job:
+        return
+    
+    status = "success" if event.code == EVENT_JOB_EXECUTED else "error"
+    message = str(event.exception) if event.code == EVENT_JOB_ERROR else "执行完成"
+    
+    await TaskLog.update_or_create(
+        job_id=event.job_id,
+        defaults={
+            "last_run": datetime.datetime.now(),
+            "status": status,
+            "message": message
+        }
+    )
+
+async def init_scheduler():
+    log.info("初始化后台定时任务 (Async 版)...")
+    
+    # 注册监听器
+    scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+    
+    cfg = await read_config()
     schedule_cfg = cfg.get("schedule", {})
     mode = schedule_cfg.get("mode", "cron")
     
@@ -32,6 +56,7 @@ def init_scheduler():
         trigger = IntervalTrigger(minutes=interval)
         log.info(f"RSS 订阅检查任务配置为: 每隔 {interval} 分钟")
 
+    # 注意：AsyncIOScheduler 会自动处理协程函数
     scheduler.add_job(
         run_download_task,
         trigger,
@@ -50,12 +75,12 @@ def init_scheduler():
     if not scheduler.running:
         scheduler.start()
         
-    # 启动时立刻执行一次
-    scheduler.add_job(run_download_task)
-    scheduler.add_job(process_completed_downloads)
+    # 启动时立刻异步执行一次
+    scheduler.add_job(run_download_task, id="run_once_downloader")
+    scheduler.add_job(process_completed_downloads, id="run_once_renamer")
 
-def restart_scheduler():
+async def restart_scheduler():
     log.info("重启定时任务...")
     if scheduler.running:
         scheduler.shutdown()
-    init_scheduler()
+    await init_scheduler()

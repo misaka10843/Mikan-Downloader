@@ -1,7 +1,7 @@
 <template>
   <v-card border class="cron-generator" elevation="0" flat>
-    <div class="d-flex flex-row">
-      <v-tabs v-model="activeTab" class="rounded-l-xl bg-grey-lighten-4" color="primary" direction="vertical">
+    <div class="d-flex flex-row bg-surface">
+      <v-tabs v-model="activeTab" class="rounded-l-xl border-e bg-surface" color="primary" direction="vertical">
         <v-tab value="minute">
           <v-icon start>mdi-clock-outline</v-icon>
           分
@@ -39,7 +39,7 @@
 
     <v-divider></v-divider>
 
-    <div class="bg-primary-lighten-5 pa-4 d-flex align-center justify-space-between">
+    <div class="pa-4 d-flex align-center justify-space-between">
       <div>
         <div class="text-caption text-medium-emphasis">生成的 Cron 表达式 (分 时 日 月 周)</div>
         <div class="text-h5 font-weight-black font-monospace text-primary">{{ cronExpression }}</div>

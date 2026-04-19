@@ -87,16 +87,30 @@
           <div v-if="previewDialog.loading" class="d-flex justify-center my-6">
             <v-progress-circular indeterminate color="primary"></v-progress-circular>
           </div>
-          <v-list v-else-if="previewDialog.results.length > 0">
-             <v-list-item v-for="(res, idx) in previewDialog.results" :key="idx" class="mb-2 rounded border">
-                <template v-slot:prepend>
-                  <v-icon :color="res.match ? 'success' : 'grey'" :icon="res.match ? 'mdi-check-circle' : 'mdi-close-circle'"></v-icon>
-                </template>
-                <v-list-item-title class="text-wrap" :class="res.match ? 'font-weight-bold text-success' : 'text-grey'">
-                  {{ res.title }}
-                </v-list-item-title>
-             </v-list-item>
-          </v-list>
+          <div v-else-if="previewDialog.results.length > 0">
+            <div class="d-flex align-center mb-2 px-2">
+              <v-btn size="x-small" variant="text" @click="selectAllPreview">全选匹配项</v-btn>
+              <v-btn size="x-small" variant="text" @click="previewDialog.selected = []">取消全选</v-btn>
+              <v-spacer></v-spacer>
+              <v-btn :disabled="previewDialog.selected.length === 0" color="primary" size="small" rounded="pill" @click="addToHistoryBatch" :loading="previewDialog.addingHistory">
+                将选中项加入历史 (跳过)
+              </v-btn>
+            </div>
+            <v-list class="preview-list">
+               <v-list-item v-for="(res, idx) in previewDialog.results" :key="idx" class="mb-2 rounded border" :active="res.match">
+                  <template v-slot:prepend>
+                    <v-checkbox-btn v-model="previewDialog.selected" :value="res.title" :disabled="res.in_history" color="primary"></v-checkbox-btn>
+                    <v-icon :color="res.match ? 'success' : 'grey'" :icon="res.match ? 'mdi-check-circle' : 'mdi-close-circle'" class="ml-2"></v-icon>
+                  </template>
+                  <v-list-item-title class="text-wrap" :class="res.match ? 'font-weight-bold text-success' : 'text-grey'">
+                    {{ res.title }}
+                  </v-list-item-title>
+                  <template v-slot:append>
+                    <v-chip v-if="res.in_history" size="x-small" color="grey" variant="flat">已在历史中</v-chip>
+                  </template>
+               </v-list-item>
+            </v-list>
+          </div>
           <v-alert v-else type="error" variant="tonal">无法获取预览，该源近无更新或无法访问。</v-alert>
         </v-card-text>
       </v-card>
@@ -118,7 +132,10 @@ const previewDialog = ref({
   show: false,
   loading: false,
   rule: '',
-  results: []
+  results: [],
+  selected: [],
+  url: '',
+  addingHistory: false
 })
 
 const displayedSubs = computed(() => {
@@ -178,6 +195,8 @@ const previewRegex = async (idx) => {
   previewDialog.value.show = true
   previewDialog.value.loading = true
   previewDialog.value.results = []
+  previewDialog.value.selected = []
+  previewDialog.value.url = target.url
   previewDialog.value.rule = target.rule || '.*'
   
   try {
@@ -191,6 +210,38 @@ const previewRegex = async (idx) => {
     showMsg('拉取番剧预览列表异常', 'error')
   } finally {
     previewDialog.value.loading = false
+  }
+}
+
+const selectAllPreview = () => {
+  previewDialog.value.selected = previewDialog.value.results
+    .filter(r => r.match && !r.in_history)
+    .map(r => r.title)
+}
+
+const addToHistoryBatch = async () => {
+  if (previewDialog.value.selected.length === 0) return
+  
+  previewDialog.value.addingHistory = true
+  try {
+    const res = await axios.post('/api/mikan/history/add', {
+      source: previewDialog.value.url,
+      guids: previewDialog.value.selected
+    })
+    if (res.data.status === 'success') {
+      showMsg(`成功将 ${previewDialog.value.selected.length} 项标记为跳过`)
+      // 局部更新状态，避免重新拉入
+      previewDialog.value.results.forEach(r => {
+        if (previewDialog.value.selected.includes(r.title)) {
+          r.in_history = true
+        }
+      })
+      previewDialog.value.selected = []
+    }
+  } catch(e) {
+    showMsg('标记失败', 'error')
+  } finally {
+    previewDialog.value.addingHistory = false
   }
 }
 
