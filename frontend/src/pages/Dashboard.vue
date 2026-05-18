@@ -56,6 +56,7 @@
           <v-spacer></v-spacer>
           
           <v-card-actions class="px-4 pb-4 pt-2">
+            <v-btn color="primary" variant="text" size="small" prepend-icon="mdi-pencil" @click="openEdit(item.originalIndex)">编辑</v-btn>
             <v-btn v-if="viewMode === 'active'" color="warning" variant="text" size="small" @click="softDelete(item.originalIndex)">
               移至回收站
             </v-btn>
@@ -83,7 +84,29 @@
           <v-btn icon="mdi-close" variant="text" @click="previewDialog.show = false"></v-btn>
         </v-card-title>
         <v-card-text class="pa-4 pt-6">
-          <v-alert type="info" variant="tonal" class="mb-4" density="compact">当前正则: <b>{{ previewDialog.rule }}</b></v-alert>
+          <v-alert type="info" variant="tonal" class="mb-4" density="compact">匹配规则: <b>{{ previewDialog.rule }}</b></v-alert>
+          <v-text-field
+            v-model="previewDialog.rename_rule"
+            label="集数解析规则 (auto 或自定义正则)"
+            density="compact"
+            variant="outlined"
+            hide-details
+            class="mb-2"
+            @change="rePreview"
+          ></v-text-field>
+          <v-expansion-panels class="mb-4" variant="accordion">
+            <v-expansion-panel elevation="0" class="border">
+              <v-expansion-panel-title class="text-caption text-primary py-0 min-h-0" style="min-height: 36px">不会写正则？点击查看使用指南与常见例子大全</v-expansion-panel-title>
+              <v-expansion-panel-text class="text-caption pa-2">
+                <b>工作原理：</b><br/>系统会在这个表达式中寻找<b>第一个括号 <code>()</code>（即捕获组）</b>圈起来的数字，并把它作为第几集。<br/><br/>
+                <b>万能套用的常见场景速查表：</b><br/>
+                • 纯数字开头带下划线（例如 <code>10_burn-in.mp4</code>）：填写正则 <code>^(\d{1,3})_</code> <br/>
+                • 在特定的组名和前后缀中（例如 <code>KxIX 01 [GB]</code>）：填写正则 <code>KxIX\s+(\d{1,3})\s+\[GB\]</code> <br/>
+                • 前面有下划线，或者是集数直接跟在某单词后（例如 <code>ep10_v2.mp4</code>）：填写正则 <code>ep(\d{1,3})_</code> <br/>
+                • 针对 <b>OVA</b> 或特别篇等没有数字的视频：因为我们抓取后强制组装为 <code>S01E...</code> 的规范，目前不支持非数字映射。建议对于 OVA 您暂时只处理数字正编集数，OVA单独在对应 NAS 操作哦！
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
           <div v-if="previewDialog.loading" class="d-flex justify-center my-6">
             <v-progress-circular indeterminate color="primary"></v-progress-circular>
           </div>
@@ -107,12 +130,50 @@
                   </v-list-item-title>
                   <template v-slot:append>
                     <v-chip v-if="res.in_history" size="x-small" color="grey" variant="flat">已在历史中</v-chip>
+                    <v-chip v-else-if="res.episode" size="x-small" color="primary" variant="tonal" class="ml-1">
+                      S{{ String(res.season).padStart(2, '0') }}E{{ res.episode }}
+                    </v-chip>
                   </template>
                </v-list-item>
             </v-list>
           </div>
           <v-alert v-else type="error" variant="tonal">无法获取预览，该源近无更新或无法访问。</v-alert>
         </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="editDialog.show" max-width="550">
+      <v-card class="rounded-xl">
+        <v-card-title class="bg-primary text-white d-flex align-center pa-4">
+          编辑订阅
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" variant="text" @click="editDialog.show = false"></v-btn>
+        </v-card-title>
+        <v-card-text class="pa-4 pt-6">
+          <v-text-field v-model="editDialog.form.title" label="番剧标题" density="compact" variant="outlined" class="mb-3"></v-text-field>
+          <v-text-field v-model="editDialog.form.url" label="RSS 链接" density="compact" variant="outlined" class="mb-3"></v-text-field>
+          <v-text-field v-model="editDialog.form.date" label="年份标定" density="compact" variant="outlined" class="mb-3" placeholder="如: 2024"></v-text-field>
+          <v-text-field v-model="editDialog.form.rule" label="过滤规则 (正则或关键字)" density="compact" variant="outlined" class="mb-3"></v-text-field>
+          <v-text-field v-model="editDialog.form.rename_rule" label="集数解析规则 (auto 或自定义正则)" density="compact" variant="outlined" class="mb-2"></v-text-field>
+          <v-expansion-panels variant="accordion">
+            <v-expansion-panel elevation="0" class="border">
+              <v-expansion-panel-title class="text-caption text-primary py-0 min-h-0" style="min-height: 36px">不会写正则？点击查看使用指南与常见例子大全</v-expansion-panel-title>
+              <v-expansion-panel-text class="text-caption pa-2">
+                <b>工作原理：</b><br/>系统会在这个表达式中寻找<b>第一个括号 <code>()</code>（即捕获组）</b>圈起来的数字，并把它作为第几集。<br/><br/>
+                <b>万能套用的常见场景速查表：</b><br/>
+                • 纯数字开头带下划线（例如 <code>10_burn-in.mp4</code>）：填写正则 <code>^(\d{1,3})_</code> <br/>
+                • 在特定的组名和前后缀中（例如 <code>KxIX 01 [GB]</code>）：填写正则 <code>KxIX\s+(\d{1,3})\s+\[GB\]</code> <br/>
+                • 前面有下划线，或者是集数直接跟在某单词后（例如 <code>ep10_v2.mp4</code>）：填写正则 <code>ep(\d{1,3})_</code> <br/>
+                • 针对 <b>OVA</b> 或特别篇等没有数字的视频：因为我们抓取后强制组装为 <code>S01E...</code> 的规范，目前不支持非数字映射。建议对于 OVA 您暂时只处理数字正编集数，OVA单独在对应 NAS 操作哦！
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="editDialog.show = false">取消</v-btn>
+          <v-btn color="primary" variant="flat" rounded="pill" @click="saveEdit">保存</v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
@@ -132,10 +193,17 @@ const previewDialog = ref({
   show: false,
   loading: false,
   rule: '',
+  rename_rule: 'auto',
   results: [],
   selected: [],
   url: '',
   addingHistory: false
+})
+
+const editDialog = ref({
+  show: false,
+  idx: -1,
+  form: { url: '', title: '', date: '', rule: '', rename_rule: 'auto' }
 })
 
 const displayedSubs = computed(() => {
@@ -192,15 +260,16 @@ const previewRegex = async (idx) => {
   const target = subs.value[idx]
   if (!target || !target.url) return;
   
-  previewDialog.value.show = true
-  previewDialog.value.loading = true
   previewDialog.value.results = []
   previewDialog.value.selected = []
+  previewDialog.value.loading = true
   previewDialog.value.url = target.url
   previewDialog.value.rule = target.rule || '.*'
+  previewDialog.value.rename_rule = target.rename_rule || 'auto'
+  previewDialog.value.show = true
   
   try {
-    const res = await axios.post('/api/mikan/preview', { url: target.url, rule: previewDialog.value.rule })
+    const res = await axios.post('/api/mikan/preview', { url: target.url, rule: previewDialog.value.rule, rename_rule: previewDialog.value.rename_rule })
     if (res.data.status === 'success') {
        previewDialog.value.results = res.data.results
     } else {
@@ -211,6 +280,48 @@ const previewRegex = async (idx) => {
   } finally {
     previewDialog.value.loading = false
   }
+}
+
+const rePreview = async () => {
+  if (!previewDialog.value.url) return
+  previewDialog.value.loading = true
+  previewDialog.value.results = []
+  try {
+    const res = await axios.post('/api/mikan/preview', {
+      url: previewDialog.value.url,
+      rule: previewDialog.value.rule,
+      rename_rule: previewDialog.value.rename_rule
+    })
+    if (res.data.status === 'success') {
+      previewDialog.value.results = res.data.results
+    }
+  } catch(e) {
+    showMsg('重新预览失败', 'error')
+  } finally {
+    previewDialog.value.loading = false
+  }
+}
+
+const openEdit = (idx) => {
+  const sub = subs.value[idx]
+  editDialog.value = {
+    show: true,
+    idx,
+    form: {
+      url: sub.url || '',
+      title: sub.title || '',
+      date: sub.date || '',
+      rule: sub.rule || '',
+      rename_rule: sub.rename_rule || 'auto'
+    }
+  }
+}
+
+const saveEdit = () => {
+  const idx = editDialog.value.idx
+  Object.assign(subs.value[idx], editDialog.value.form)
+  editDialog.value.show = false
+  saveSubs()
 }
 
 const selectAllPreview = () => {

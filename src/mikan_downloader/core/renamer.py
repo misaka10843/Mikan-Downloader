@@ -239,9 +239,20 @@ async def process_completed_downloads():
         sub = await Subscription.get_or_none(title=title_only, is_deleted=False)
         custom_regex = sub.rename_rule if sub else 'auto'
 
+        MEDIA_EXTS = ('.mp4', '.mkv', '.avi', '.ts', '.wmv', '.flv', '.mov', '.ass', '.srt', '.ssa', '.vtt', '.nfo')
+
         for root, dirs, files in os.walk(dir_path):
             for filename in files:
                 filepath = os.path.join(root, filename)
+                if filename.lower().endswith('.torrent'):
+                    try:
+                        os.remove(filepath)
+                        log.info(f"已删除种子文件: {filename}")
+                    except Exception as e:
+                        log.warning(f"删除种子文件失败: {e}")
+                    continue
+                if not filename.lower().endswith(MEDIA_EXTS):
+                    continue
                 season, episode = parse_episode_number(filename, custom_regex)
                 
                 if not episode:

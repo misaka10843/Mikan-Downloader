@@ -1,69 +1,82 @@
 <template>
   <div>
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex align-center mb-6">
       <h2 class="text-h5 font-weight-bold">运行日志</h2>
-      <div class="d-flex gap-2">
+      <v-spacer></v-spacer>
+      <v-btn color="error" variant="outlined" prepend-icon="mdi-delete-sweep" rounded="pill" @click="clearLogs" :loading="clearing">
+        清空日志
+      </v-btn>
+    </div>
+
+    <v-card class="rounded-xl overflow-hidden" elevation="2">
+      <v-card-title class="pa-4 d-flex align-center flex-wrap">
+        <v-chip-group v-model="filter" @update:modelValue="reload">
+          <v-chip value="" variant="tonal">全部</v-chip>
+          <v-chip value="fetch" color="blue" variant="tonal" prepend-icon="mdi-rss">获取</v-chip>
+          <v-chip value="push" color="green" variant="tonal" prepend-icon="mdi-cloud-upload">推送</v-chip>
+          <v-chip value="rename" color="purple" variant="tonal" prepend-icon="mdi-file-move">重命名</v-chip>
+          <v-chip value="error" color="error" variant="tonal" prepend-icon="mdi-alert-circle">错误</v-chip>
+        </v-chip-group>
+        <v-spacer></v-spacer>
+        <span class="text-caption text-grey mr-2">共 {{ total }} 条</span>
         <v-btn icon="mdi-refresh" variant="text" size="small" @click="reload"></v-btn>
-        <v-btn color="error" variant="outlined" size="small" prepend-icon="mdi-delete-sweep" @click="clearLogs" :loading="clearing">清空</v-btn>
+      </v-card-title>
+
+      <v-table density="comfortable">
+        <thead>
+          <tr>
+            <th style="width: 110px">操作类型</th>
+            <th style="width: 20%">番剧</th>
+            <th style="width: 30%">集数 / 文件</th>
+            <th>详情</th>
+            <th style="width: 160px">时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading">
+            <td colspan="5" class="text-center py-8">
+              <v-progress-circular indeterminate color="primary" size="24"></v-progress-circular>
+            </td>
+          </tr>
+          <tr v-else-if="logs.length === 0">
+            <td colspan="5" class="text-center py-8 text-grey">暂无日志记录</td>
+          </tr>
+          <template v-else>
+            <tr v-for="item in logs" :key="item.id">
+              <td>
+                <v-chip :color="getActionColor(item.action)" size="x-small" variant="tonal" :prepend-icon="getActionIcon(item.action)">
+                  {{ getActionLabel(item.action) }}
+                </v-chip>
+              </td>
+              <td class="text-body-2 font-weight-medium">{{ item.anime_title || '—' }}</td>
+              <td class="text-caption" style="word-break: break-all;">{{ item.episode || '—' }}</td>
+              <td class="text-caption text-grey" style="max-width: 200px;" :title="item.detail || ''">
+                <span class="text-truncate d-block" style="max-width: 200px;">{{ item.detail || '—' }}</span>
+              </td>
+              <td class="text-caption text-grey">{{ item.timestamp }}</td>
+            </tr>
+          </template>
+        </tbody>
+      </v-table>
+
+      <v-divider></v-divider>
+      <div class="pa-4 d-flex align-center">
+        <v-spacer></v-spacer>
+        <v-pagination
+          v-model="page"
+          :length="pageCount"
+          total-visible="7"
+          rounded="circle"
+          size="small"
+          @update:model-value="loadPage"
+        ></v-pagination>
       </div>
-    </div>
-
-    <v-chip-group v-model="filter" class="mb-4" @update:modelValue="reload">
-      <v-chip value="" variant="tonal">全部</v-chip>
-      <v-chip value="fetch" color="blue" variant="tonal">
-        <v-icon start>mdi-rss</v-icon>获取
-      </v-chip>
-      <v-chip value="push" color="green" variant="tonal">
-        <v-icon start>mdi-cloud-upload</v-icon>推送
-      </v-chip>
-      <v-chip value="rename" color="purple" variant="tonal">
-        <v-icon start>mdi-file-move</v-icon>重命名
-      </v-chip>
-      <v-chip value="error" color="error" variant="tonal">
-        <v-icon start>mdi-alert-circle</v-icon>错误
-      </v-chip>
-    </v-chip-group>
-
-    <div v-if="loading && logs.length === 0" class="d-flex justify-center my-10">
-      <v-progress-circular indeterminate color="primary"></v-progress-circular>
-    </div>
-
-    <v-alert v-else-if="!loading && logs.length === 0" type="info" variant="tonal">暂无日志记录。</v-alert>
-
-    <v-timeline v-else density="compact" side="end" truncate-line="both">
-      <v-timeline-item
-        v-for="item in logs"
-        :key="item.id"
-        :dot-color="getActionColor(item.action)"
-        size="small"
-      >
-        <template v-slot:icon>
-          <v-icon size="x-small" color="white">{{ getActionIcon(item.action) }}</v-icon>
-        </template>
-        <v-card class="rounded-xl" elevation="1" border>
-          <v-card-text class="pa-3">
-            <div class="d-flex align-center justify-space-between mb-1">
-              <v-chip size="x-small" :color="getActionColor(item.action)" variant="flat">
-                {{ getActionLabel(item.action) }}
-              </v-chip>
-              <span class="text-caption text-medium-emphasis">{{ item.timestamp }}</span>
-            </div>
-            <div class="font-weight-bold text-body-2">{{ item.anime_title || '—' }}</div>
-            <div class="text-body-2 text-medium-emphasis mt-1" style="word-break: break-all;">{{ item.episode || '—' }}</div>
-            <div v-if="item.detail" class="text-caption text-grey mt-1" style="word-break: break-all;">{{ item.detail }}</div>
-          </v-card-text>
-        </v-card>
-      </v-timeline-item>
-    </v-timeline>
-
-    <div v-if="hasMore" class="d-flex justify-center mt-4">
-      <v-btn variant="tonal" :loading="loading" @click="loadMore">加载更多</v-btn>
-    </div>
+    </v-card>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import axios from 'axios'
 
 const showMsg = inject('showMsg')
@@ -72,10 +85,10 @@ const filter = ref('')
 const loading = ref(false)
 const clearing = ref(false)
 const total = ref(0)
-const offset = ref(0)
+const page = ref(1)
 const PAGE_SIZE = 50
 
-const hasMore = ref(false)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 const getActionColor = (action) => {
   switch (action) {
@@ -107,19 +120,14 @@ const getActionLabel = (action) => {
   }
 }
 
-const fetchLogs = async (append = false) => {
+const fetchLogs = async () => {
   loading.value = true
   try {
-    const params = { limit: PAGE_SIZE, offset: offset.value }
+    const params = { limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }
     if (filter.value) params.action = filter.value
     const res = await axios.get('/api/activity/logs', { params })
     total.value = res.data.total
-    if (append) {
-      logs.value.push(...res.data.items)
-    } else {
-      logs.value = res.data.items
-    }
-    hasMore.value = logs.value.length < total.value
+    logs.value = res.data.items
   } catch (e) {
     showMsg('加载日志失败', 'error')
   } finally {
@@ -128,13 +136,12 @@ const fetchLogs = async (append = false) => {
 }
 
 const reload = () => {
-  offset.value = 0
-  fetchLogs(false)
+  page.value = 1
+  fetchLogs()
 }
 
-const loadMore = () => {
-  offset.value += PAGE_SIZE
-  fetchLogs(true)
+const loadPage = () => {
+  fetchLogs()
 }
 
 const clearLogs = async () => {
@@ -143,7 +150,7 @@ const clearLogs = async () => {
     await axios.delete('/api/activity/logs')
     logs.value = []
     total.value = 0
-    hasMore.value = false
+    page.value = 1
     showMsg('日志已清空')
   } catch (e) {
     showMsg('清空失败', 'error')
