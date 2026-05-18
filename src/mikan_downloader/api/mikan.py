@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/mikan", tags=["mikan"])
 
 @router.get("/subs")
 async def get_subs():
-    subs = await Subscription.filter(is_deleted=False).all()
+    subs = await Subscription.all()
     return [
         {
             "url": s.url,
@@ -37,7 +37,7 @@ async def save_subs(data: List[Dict[str, Any]]):
                 "rename_rule": sub.get("rename_rule", "auto"),
                 "title": sub.get("title"),
                 "cover": sub.get("cover"),
-                "is_deleted": False
+                "is_deleted": sub.get("is_deleted", False)
             }
         )
     return {"status": "success", "message": "订阅已更新"}

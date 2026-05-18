@@ -4,6 +4,7 @@ import shutil
 import logging
 import anitopy
 from .config import read_config
+from .activity import log_activity
 
 log = logging.getLogger("Renamer")
 
@@ -138,7 +139,9 @@ async def dry_run_jellyfin_rename(folder_path, custom_regex='auto'):
         # 排除 Season 子目录，除非我们要递归处理所有文件并整理
         # 这里逻辑是：如果是库管理，我们可能想要把杂乱的文件丢进各个 Season 文件夹
         for filename in files:
-            if filename.lower().endswith(('.mp4', '.mkv', '.ts', '.ass', '.srt')):
+            # 扩展名白名单，与 api/library.py 保持同步
+            media_exts = ('.mp4', '.mkv', '.avi', '.ts', '.wmv', '.flv', '.mov', '.ass', '.srt', '.ssa', '.vtt', '.nfo')
+            if filename.lower().endswith(media_exts):
                 filepath = os.path.join(root, filename)
                 rel_path = os.path.relpath(root, folder_path)
                 if rel_path == ".":
@@ -151,18 +154,25 @@ async def dry_run_jellyfin_rename(folder_path, custom_regex='auto'):
                 suffix = get_subtitle_suffix(filename)
                 new_filename = f"S{str(season).zfill(2)}E{episode}{suffix}" if episode else "解析失败"
                 
-                # 计算目标路径
+                # 计算目标路径 (绝对路径)
                 season_folder = "Specials" if season == 0 else f"Season {season}"
-                target_path = os.path.join(season_folder, new_filename)
+                target_path = os.path.join(folder_path, season_folder, new_filename)
+                
+                # 如果文件已经处于目标路径，说明已经整理过了，跳过预览展示
+                if os.path.normpath(filepath) == os.path.normpath(target_path):
+                    continue
 
                 results.append({
-                    "original": filename,
+                    "original_name": filename,
                     "relative_path": rel_path,
                     "full_path": filepath,
-                    "target": new_filename,
+                    "new_name": new_filename,
                     "target_path": target_path,
+                    "target_dir": folder_path,
                     "season": season,
                     "episode": episode or "",
+                    "ext": os.path.splitext(filename)[1],
+                    "status": "success" if episode else "error",
                     "conflict": False # 初始化冲突标识
                 })
     
@@ -186,8 +196,8 @@ def apply_jellyfin_rename(mapping_list):
     """
     count = 0
     for item in mapping_list:
-        src = item.get("source")
-        dst = item.get("target")
+        src = item.get("full_path")
+        dst = item.get("target_path")
         if src and dst and os.path.exists(src):
             try:
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -251,9 +261,11 @@ async def process_completed_downloads():
                     shutil.move(filepath, target_filepath)
                     log.info(f"重命名并移动成功: {new_filename}")
                     await add_notification("success", "文件自动整理完成", f"{title_only} - {new_filename} 已归档")
+                    await log_activity("rename", title_only, f"{filename} → {new_filename}", target_filepath)
                 except Exception as e:
                     log.error(f"移动失败: {e}")
                     await add_notification("error", "文件整理失败", f"无法移动文件 {filename}: {e}")
+                    await log_activity("error", title_only, filename, f"重命名失败: {e}")
             
             # 清理空目录
             if not os.listdir(root) and root != staging_base:

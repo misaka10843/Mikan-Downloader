@@ -48,3 +48,14 @@ class TaskLog(models.Model):
 
     class Meta:
         table = "task_logs"
+
+class ActivityLog(models.Model):
+    id = fields.IntField(pk=True)
+    action = fields.CharField(max_length=20)  # fetch / push / rename / skip / error
+    anime_title = fields.CharField(max_length=255, null=True)
+    episode = fields.TextField(null=True)
+    detail = fields.TextField(null=True)
+    timestamp = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "activity_logs"

@@ -129,6 +129,7 @@ import Library from './pages/Library.vue'
 import Schedule from './pages/Schedule.vue'
 import Notifications from './pages/Notifications.vue'
 import History from './pages/History.vue'
+import Activity from './pages/Activity.vue'
 
 const { mobile } = useDisplay()
 const drawer = ref(!mobile.value)
@@ -146,6 +147,7 @@ const menuItems = [
   { title: '自动化与定时策略', value: 'schedule', icon: 'mdi-clock-outline', component: Schedule },
   { title: '通知中心', value: 'notifications', icon: 'mdi-bell-ring', component: Notifications },
   { title: '下载历史记录', value: 'history', icon: 'mdi-history', component: History },
+  { title: '运行日志', value: 'activity', icon: 'mdi-text-box-multiple-outline', component: Activity },
   { title: '系统设置', value: 'settings', icon: 'mdi-cog', component: Settings },
 ]
 
@@ -167,7 +169,7 @@ provide('showMsg', showMsg)
 const manualRun = async () => {
   running.value = true
   try {
-    const res = await axios.post('/api/run')
+    const res = await axios.post('/api/schedule/run')
     showMsg('后台抓取任务已启动')
   } catch (e) {
     showMsg('启动失败', 'error')

@@ -9,6 +9,7 @@ import logging
 from .config import read_config
 from ..db.models import DownloadHistory, Subscription
 from .notifications import add_notification
+from .activity import log_activity
 
 log = logging.getLogger("Downloader")
 
@@ -82,6 +83,7 @@ async def aria2_add(client, title, rss_date, url, base_dir, torrents_dir, proxie
         client.add_torrent(filename, options={'dir': staging_dir})
     
     await add_notification("success", "已添加下载任务", f"番剧 {title} 的新资源已推送到 Aria2")
+    await log_activity("push", title, url, "已推送至 Aria2")
 
 async def parse_rss_entries(rss_link, rss_date, rss_rule, config):
     api_urls = config.get('api_url', ['https://mikanani.me'])
@@ -108,8 +110,10 @@ async def parse_rss_entries(rss_link, rss_date, rss_rule, config):
 
     for entry in feed.entries:
         guid = entry.id
+        entry_title = entry.get('title', guid)
         if not await DownloadHistory.exists(guid=guid):
             if re.search(r'.*' + rss_rule + '.*', guid):
+                await log_activity("fetch", title, entry_title, f"来源: {rss_link}")
                 for enclosure in entry.get('enclosures', []):
                     if enclosure.get('type') == 'application/x-bittorrent':
                         log.info(f"将 {entry.id} 添加到下载中")

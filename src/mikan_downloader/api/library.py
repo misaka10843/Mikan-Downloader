@@ -31,13 +31,26 @@ async def get_library_list(path: str = None):
                 needs_rename = False
                 try:
                     sub_items = os.listdir(item_path)
+                    # 常见的非剧集文件/文件夹排除
+                    ignore_names = (
+                        'tvshow.nfo', 'season.nfo', 'fanart', 'poster', 'banner', 'logo', 'clearart', 'landscape',
+                        'theme.mp3', 'theme.mp4', 'backdrops', '.mikan_staging'
+                    )
+                    # 需要移动或重命名的视频和字幕后缀
+                    media_exts = ('.mp4', '.mkv', '.avi', '.ts', '.wmv', '.flv', '.mov', '.ass', '.srt', '.ssa', '.vtt', '.nfo')
+                    
                     for subitem in sub_items:
                         dl = subitem.lower()
-                        if dl.startswith("season ") or dl in ("specials", "sp", "scans", "extras", "featurettes"):
-                            is_compliant = True
-                        elif dl.endswith(('.mp4', '.mkv', '.avi', '.ass', '.srt', '.vtt', '.nfo')):
-                            if dl not in ('tvshow.nfo', 'season.nfo') and not dl.startswith('season'):
-                                needs_rename = True
+                        item_full = os.path.join(item_path, subitem)
+                        
+                        if os.path.isdir(item_full):
+                            if dl.startswith("season ") or dl in ("specials", "sp", "scans", "extras", "featurettes"):
+                                is_compliant = True
+                        else:
+                            if dl.endswith(media_exts):
+                                # 如果是文件且在根目录，且不在忽略名单中，且不以 season 开头 (针对 season01-poster.jpg 等)
+                                if not dl.startswith(ignore_names) and not dl.startswith('season'):
+                                    needs_rename = True
                 except:
                     pass
                 

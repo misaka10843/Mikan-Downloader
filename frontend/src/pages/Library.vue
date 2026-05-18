@@ -148,6 +148,7 @@
                     <v-text-field v-model="item.manualSeason" label="季/目录" density="compact" hide-details variant="outlined" style="max-width: 90px;" placeholder="1, SP..."></v-text-field>
                     <v-text-field v-model="item.manualEpisode" label="集号(可选)" density="compact" hide-details variant="outlined" style="max-width: 100px;" placeholder="留空保持原名"></v-text-field>
                     <v-btn size="small" color="primary" variant="tonal" @click="applyManual(item)">应用修正</v-btn>
+                    <v-btn size="small" color="orange-darken-1" variant="tonal" @click="quickToSP(item)">快捷 SP</v-btn>
                     <v-btn size="small" icon="mdi-delete-outline" color="error" variant="text" @click="deleteSingleFile(item)"></v-btn>
                   </div>
                 </td>
@@ -337,6 +338,12 @@ const applyManual = (item) => {
   
   item.status = 'success'
   showMsg('局部覆盖成功，请检查全表后点正式执行')
+}
+
+const quickToSP = (item) => {
+  item.manualSeason = 'SP'
+  // 快捷 SP 通常保持原名移动到 Specials 目录，除非用户手动填了集号
+  applyManual(item)
 }
 
 const applyRename = async () => {

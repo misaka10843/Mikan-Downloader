@@ -8,7 +8,7 @@ from tortoise.contrib.fastapi import RegisterTortoise
 from .db.database import run_db_migrations
 from .core.config import migrate_from_yaml
 from .core.scheduler import init_scheduler, scheduler
-from .api import mikan, settings, notifications, scheduler as scheduler_api, library, history
+from .api import mikan, settings, notifications, scheduler as scheduler_api, library, history, activity
 
 log = logging.getLogger("App")
 
@@ -54,8 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(scheduler_api.router)
     app.include_router(library.router)
     app.include_router(history.router)
-
-    app.include_router(history.router)
+    app.include_router(activity.router)
 
     # 静态文件处理
     # 尝试寻找 spa_dist
