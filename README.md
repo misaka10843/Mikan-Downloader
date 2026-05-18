@@ -1,8 +1,7 @@
 # Mikan-Downloader
 蜜柑计划番剧下载器
 
-![image](https://user-images.githubusercontent.com/69132853/233790308-50685324-b64e-4878-84e8-295750f9c95f.png)
-
+<img width="1907" height="960" alt="image" src="https://github.com/user-attachments/assets/f67065d0-c2e1-4561-bfcf-67f0884b680d" />
 
 > **Warning**
 > Mikan Project is a Chinese website, so I will not add any language other than Chinese, please understand
@@ -17,29 +16,24 @@
 
 ### 配置文件
 
-首先，请先按照`config.example.yml`里面的注解配置一下，然后重命名为`config.yml`
+当前本程序已经移至docker+webUI，可以直接部署后访问UI地址进行配置
 
-(如果你是直接下载的编译版，请按照上方修改后将`config.yml`放在**程序的同目录下**)
+## 特色功能
 
-> **Warning**
-> 请不要删除除`mikan`下的所有配置，如果不需要直接留空即可
+### 自动清洗标题
 
-### 如何启动
+内置标题清洗以及允许用户手动编写标题识别规则，然后将下载/库中未为jellyfin等的命名规则的番剧重新整理为支持的命名规则
 
-理论来说，只需要双击(编译版)或者输入`python main.py`(源代码)即可
+<img width="1909" height="965" alt="image" src="https://github.com/user-attachments/assets/d6d88446-d841-4021-a99d-adc2926c8c59" />
+<img width="1372" height="859" alt="image" src="https://github.com/user-attachments/assets/e7c3105e-eee7-4ba4-a389-e74f8c271360" />
 
-但是请注意aria2要启动了哦qwq
+### 可视化定时
 
-### 如何定时运行
+允许用户可视化操作定时任务
 
-只需要注意一下，在使用下面教程的时候将运行的程序修改为**如何启动**中的方式即可
+<img width="972" height="885" alt="image" src="https://github.com/user-attachments/assets/18e5d793-5e60-4215-90c6-ac8b7cf7fef6" />
 
-> [Windows](https://blog.csdn.net/qq_44214671/article/details/113834079)
-> [Linux](https://zhuanlan.zhihu.com/p/89772177)
 
-## 跟其他的下载器有什么不同
-
-其实并不是有特别大的区别，最主要的一点就是将下载完成的历史保存到了sqlite数据库中，
 
 并且检测如果配置文件中没有对应的RSS就直接删除所有相关内容
 
