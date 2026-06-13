@@ -143,7 +143,7 @@ const recentNotifications = ref([])
 
 const menuItems = [
   { title: '我的订阅', value: 'dashboard', icon: 'mdi-view-dashboard', component: Dashboard },
-  { title: '本地片库整理 (Jellyfin)', value: 'library', icon: 'mdi-folder-play', component: Library },
+  { title: '本地片库整理', value: 'library', icon: 'mdi-folder-play', component: Library },
   { title: '自动化与定时策略', value: 'schedule', icon: 'mdi-clock-outline', component: Schedule },
   { title: '通知中心', value: 'notifications', icon: 'mdi-bell-ring', component: Notifications },
   { title: '下载历史记录', value: 'history', icon: 'mdi-history', component: History },

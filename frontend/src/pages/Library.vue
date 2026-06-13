@@ -2,7 +2,7 @@
   <div>
     <div class="d-flex align-center mb-6">
       <div class="flex-grow-1 mr-4">
-        <h2 class="text-h5 font-weight-bold mb-2">本地媒体库 (Jellyfin 助手)</h2>
+        <h2 class="text-h5 font-weight-bold mb-2">本地媒体库</h2>
         <v-text-field
            v-model="customPath"
            label="媒体库所处服务器绝对路径 (留空则默认读取配置项中的下载目录 save_dir)"

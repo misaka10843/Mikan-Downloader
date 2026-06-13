@@ -142,6 +142,10 @@ async def dry_run_jellyfin_rename(folder_path, custom_regex='auto'):
             # 扩展名白名单，与 api/library.py 保持同步
             media_exts = ('.mp4', '.mkv', '.avi', '.ts', '.wmv', '.flv', '.mov', '.ass', '.srt', '.ssa', '.vtt', '.nfo')
             if filename.lower().endswith(media_exts):
+                # 排除不要重命名的系统级/元数据文件
+                if filename.lower() in ('tvshow.nfo', 'theme.mp4') or re.match(r'^season(?:[0-9\-a-z]+)?\.nfo$', filename.lower()):
+                    continue
+                
                 filepath = os.path.join(root, filename)
                 rel_path = os.path.relpath(root, folder_path)
                 if rel_path == ".":
@@ -253,6 +257,10 @@ async def process_completed_downloads():
                     continue
                 if not filename.lower().endswith(MEDIA_EXTS):
                     continue
+                # 排除不要重命名的系统级/元数据文件
+                if filename.lower() in ('tvshow.nfo', 'theme.mp4') or re.match(r'^season(?:[0-9\-a-z]+)?\.nfo$', filename.lower()):
+                    continue
+                    
                 season, episode = parse_episode_number(filename, custom_regex)
                 
                 if not episode:

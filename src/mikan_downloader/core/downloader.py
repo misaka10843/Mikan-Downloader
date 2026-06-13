@@ -112,7 +112,7 @@ async def parse_rss_entries(rss_link, rss_date, rss_rule, config):
         guid = entry.id
         entry_title = entry.get('title', guid)
         if not await DownloadHistory.exists(guid=guid):
-            if re.search(r'.*' + rss_rule + '.*', guid):
+            if not rss_rule or re.search(rss_rule, entry_title, re.IGNORECASE):
                 await log_activity("fetch", title, entry_title, f"来源: {rss_link}")
                 for enclosure in entry.get('enclosures', []):
                     if enclosure.get('type') == 'application/x-bittorrent':
