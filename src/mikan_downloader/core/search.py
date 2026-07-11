@@ -147,10 +147,11 @@ async def get_rss_metadata(rss_url: str) -> Dict[str, Any]:
         # 提取封面
         cover_tag = soup.select_one('div.bangumi-poster')
         cover_style = cover_tag.get('style', '') if cover_tag else ''
-        cover_match = re.search(r'url\(\'(.*?)\'\)', cover_style)
+        cover_match = re.search(r"url\(['\"]?(.*?)['\"]?\)", cover_style)
         cover_url = ""
         if cover_match:
-            raw_src = cover_match.group(1)
+            import html
+            raw_src = html.unescape(cover_match.group(1))
             cover_url = base_mikan + raw_src if raw_src.startswith('/') else raw_src
             
         return {

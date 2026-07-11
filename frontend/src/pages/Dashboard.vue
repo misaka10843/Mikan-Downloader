@@ -31,7 +31,7 @@
               rounded="lg"
               v-if="item.sub.cover"
             >
-              <v-img :src="item.sub.cover" cover></v-img>
+              <v-img :src="item.sub.cover ? '/api/mikan/proxy_image?url=' + encodeURIComponent(item.sub.cover) : ''" cover></v-img>
             </v-avatar>
           </div>
           

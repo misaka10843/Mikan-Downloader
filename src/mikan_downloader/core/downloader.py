@@ -109,16 +109,21 @@ async def parse_rss_entries(rss_link, rss_date, rss_rule, config):
     client = aria2_client(config)
 
     for entry in feed.entries:
-        guid = entry.id
-        entry_title = entry.get('title', guid)
-        if not await DownloadHistory.exists(guid=guid):
-            if not rss_rule or re.search(rss_rule, entry_title, re.IGNORECASE):
-                await log_activity("fetch", title, entry_title, f"来源: {rss_link}")
-                for enclosure in entry.get('enclosures', []):
-                    if enclosure.get('type') == 'application/x-bittorrent':
-                        log.info(f"将 {entry.id} 添加到下载中")
-                        await aria2_add(client, title, rss_date, enclosure.get('href'), base_dir, torrents_dir, proxies)
-                await DownloadHistory.create(guid=guid, source=rss_link)
+        try:
+            guid = entry.id
+            entry_title = entry.get('title', guid)
+            if not await DownloadHistory.exists(guid=guid):
+                if not rss_rule or re.search(rss_rule, entry_title, re.IGNORECASE):
+                    await log_activity("fetch", title, entry_title, f"来源: {rss_link}")
+                    for enclosure in entry.get('enclosures', []):
+                        if enclosure.get('type') == 'application/x-bittorrent':
+                            log.info(f"将 {entry.id} 添加到下载中")
+                            await aria2_add(client, title, rss_date, enclosure.get('href'), base_dir, torrents_dir, proxies)
+                    await DownloadHistory.create(guid=guid, source=rss_link)
+        except Exception as e:
+            error_msg = f"处理 RSS 条目时出错 ({entry.get('title', '未知')}): {e}"
+            log.error(error_msg)
+            await add_notification("error", "单集推送失败", error_msg + "。已自动跳过此集继续处理后续任务。")
 
 async def remove_unknown_rss_links(config):
     """

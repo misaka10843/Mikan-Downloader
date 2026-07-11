@@ -3,10 +3,12 @@ from typing import List, Dict, Any
 import feedparser
 import re
 from ..core.search import search_bangumi, get_rss_metadata
-from ..core.downloader import mikan_request, check_history, add_to_history
+from ..core.downloader import mikan_request, check_history, add_to_history, request_url
 from ..core.renamer import parse_episode_number
 from ..core.config import read_config
 from ..db.models import Subscription
+
+from fastapi.responses import Response
 
 router = APIRouter(prefix="/api/mikan", tags=["mikan"])
 
@@ -27,7 +29,12 @@ async def get_subs():
 
 @router.post("/subs")
 async def save_subs(data: List[Dict[str, Any]]):
-    await Subscription.all().update(is_deleted=True)
+    incoming_urls = [sub.get("url") for sub in data if sub.get("url")]
+    all_subs = await Subscription.all()
+    for s in all_subs:
+        if s.url not in incoming_urls:
+            await s.delete()
+
     for sub in data:
         await Subscription.update_or_create(
             url=sub.get("url"),
@@ -100,3 +107,15 @@ async def add_to_history_api(data: Dict[str, Any]):
         await add_to_history(guid, source)
     
     return {"status": "success", "message": f"成功添加 {len(guids)} 条记录到历史"}
+
+@router.get("/proxy_image")
+async def proxy_image(url: str):
+    if not url:
+        raise HTTPException(status_code=400, detail="Missing url")
+    cfg = await read_config()
+    proxies = {"http": cfg['proxy'], "https": cfg['proxy']} if cfg.get('proxy') else None
+    
+    resp = request_url("", url, proxies=proxies)
+    if resp and resp.status_code == 200:
+        return Response(content=resp.content, media_type=resp.headers.get("Content-Type", "image/jpeg"))
+    raise HTTPException(status_code=404, detail="Image not found or proxy failed")
