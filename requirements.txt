@@ -5,7 +5,7 @@ APScheduler~=3.11.2
 requests~=2.33.1
 feedparser~=6.0.12
 aria2p~=0.12.1
-beautifulsoup4~=4.14.3
+beautifulsoup4~=4.15.0
 python-multipart
 uvicorn
 tortoise-orm
